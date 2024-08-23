@@ -172,6 +172,46 @@ export function isColorLight(hexColor: string): boolean {
     }
 }
 
+export function isImageLight(imageData: ImageData): boolean {
+    let totalWeightedBrightness = 0;
+    let totalWeight = 0;
+    const totalPixels = imageData.width * imageData.height;
+    const centerX = imageData.width / 2;
+    const centerY = imageData.height / 2;
+
+    // 遍历每个像素
+    for (let y = 0; y < imageData.height; y++) {
+        for (let x = 0; x < imageData.width; x++) {
+            // 获取当前像素的索引位置
+            const index = (y * imageData.width + x) * 4;
+
+            // 提取 RGB 值
+            const r = imageData.data[index];
+            const g = imageData.data[index + 1];
+            const b = imageData.data[index + 2];
+
+            // 计算灰度值
+            const grayLevel = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            // 计算到中心点的距离
+            const distance = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+
+            // 根据距离计算权重
+            const weight = 1 / (1 + distance); // 可以根据实际情况调整权重公式
+
+            // 累加加权亮度值
+            totalWeightedBrightness += grayLevel * weight;
+            totalWeight += weight;
+        }
+    }
+
+    // 计算平均加权亮度
+    const averageWeightedBrightness = totalWeightedBrightness / totalWeight;
+
+    // 判断整体亮度
+    return averageWeightedBrightness > 128;
+}
+
 /**
  * 一次性使用，在没有canvs元素时自动创建canvas元素获取图片的imageData对象
  * @param url 

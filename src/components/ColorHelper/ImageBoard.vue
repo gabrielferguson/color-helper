@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { colorSimilarity, pixOfImageDataArray, pixOfImageDataString, parseToImageData } from './tools';
 import ColoredCheckbox from './ColoredCheckbox.vue';
 import Point from './scriptlib/Point';
-import { throttle } from './tools';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { type RegionRowData, type PositionRowData, adbHelper, fileToDataURL, type ScreenCapResult } from './tools';
+import { colorSimilarity, pixOfImageDataArray, pixOfImageDataString, parseToImageData, throttle, isImageLight, type RegionRowData, type PositionRowData, adbHelper, fileToDataURL, type ScreenCapResult } from './tools';
 import { executors as innerExecutors, type IExecutor } from './executor/Executor';
 import { ElNotification, type UploadFile, type UploadFiles } from 'element-plus';
 import emitter from './eventBus';
@@ -172,7 +170,7 @@ const maskMouseMoveEvent = throttle((e: MouseEvent) => {
         }
     }
     mouseDownPosition.set(e.offsetX, e.offsetY);
-}, 1);
+}, 10);
 
 
 const maskMouseUpEvent = (e: MouseEvent) => {
@@ -430,7 +428,22 @@ const drawMask = () => {
     drawCrossHair();
     drawRegions();
 }
+
+/**
+ * 画准心时同步获取放大镜的位图数据，并使用放大镜位图数据判断是用亮色准心还是暗色准心
+ */
 const drawCrossHair = () => {
+    // 计算放需要放大图片的显示位置
+    let mLeft = centerPoint.x - (imgClipWidth - 1) / 2;
+    let mTop = centerPoint.y - (imgClipWidth - 1) / 2;
+
+    magBmpData = imageCtx.getImageData(mLeft, mTop, imgClipWidth, imgClipWidth);
+    if (isImageLight(magBmpData)) {
+        maskCtx.fillStyle = '#00008B';
+    } else {
+        maskCtx.fillStyle = '#FFFF00';
+    }
+
     // 如果没有画过准心，在该位置画一个准心
     const regions: number[][] = [ // 相对中心位置
         [-1, -8, 2, 6], // 上 x, y, w, h
@@ -438,7 +451,6 @@ const drawCrossHair = () => {
         [-8, -1, 6, 2], // 左
         [2, -1, 6, 2], // 右
     ];
-    maskCtx.fillStyle = '#FFFF00';
     for (let region of regions) {
         maskCtx.fillRect(centerPoint.x + region[0], centerPoint.y + region[1], region[2], region[3]);
     }
@@ -471,6 +483,8 @@ const drawRegions = () => {
     };
 }
 
+let magBmpData: ImageData = null;
+
 const magnifierRefresh = () => {
     if (!imgLoaded.value) return;
 
@@ -497,12 +511,6 @@ const magnifierRefresh = () => {
             magnifierRef.value.style.top = offsetY + 'px';
         }, 0)
 
-        // 计算放需要放大图片的显示位置
-        const { x: centerX, y: centerY } = centerPoint;
-        let mLeft = centerX - (imgClipWidth - 1) / 2;
-        let mTop = centerY - (imgClipWidth - 1) / 2;
-
-        let magBmpData = imageCtx.getImageData(mLeft, mTop, imgClipWidth, imgClipWidth);
 
         magnifierCtx.clearRect(0, 0, magnifierCanvasRef.value.width, magnifierCanvasRef.value.height);
         // 画放大的图片，为避免模糊需像素放大画正方形
@@ -550,8 +558,8 @@ const magnifierRefresh = () => {
         magnifierCtx.strokeRect(magCenterX * magnifierScale, magCenterY * magnifierScale, magnifierScale, magnifierScale);
 
         // 更新界面
-        positionX.value = centerX;
-        positionY.value = centerY;
+        positionX.value = centerPoint.x;
+        positionY.value = centerPoint.y;
         positionColor.value = pixOfImageDataString(magBmpData, magCenterX, magCenterY);
 
         // 没有显示的话再显示一下
@@ -1021,7 +1029,9 @@ const superpositionRedo = async (e: MouseEvent) => {
             <!-- </el-scrollbar> -->
             <el-upload v-if="!imgLoaded" accept=" image/*" class="mask-upload" drag :limit="2" :auto-upload="false"
                 :show-file-list="false" :on-change="uploadFileChangeEvent">
-                <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+                <el-icon class="el-icon--upload">
+                    <UploadFilled />
+                </el-icon>
                 <div class="el-upload__text">
                     将图片拖放至此 或<em>点击上传图片</em>
                 </div>

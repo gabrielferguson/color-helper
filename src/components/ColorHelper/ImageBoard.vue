@@ -688,13 +688,20 @@ onMounted(() => {
     });
 
     imageCtx = imageCanvasRef.value.getContext('2d', { willReadFrequently: true });
+    imageCtx.imageSmoothingEnabled = false;
     maskCtx = maskCanvasRef.value.getContext('2d');
+    maskCtx.imageSmoothingEnabled = false;
     magnifierCtx = magnifierCanvasRef.value.getContext('2d');
+    magnifierCtx.imageSmoothingEnabled = false;
     resize();
     window.addEventListener('resize', resize);
 
     magnifierCanvasRef.value.width = imgClipWidth * magnifierScale;
     magnifierCanvasRef.value.height = imgClipWidth * magnifierScale;
+    // 调试用，关闭图片平滑显示后，使用小width+height配合大style的width+height仍然会模糊
+    // magnifierCanvasRef.value.style.width = (15 * 15) + 'px';
+    // magnifierCanvasRef.value.style.height = (15 * 15) + 'px';
+    // magnifierCanvasRef.value.style.transform = 'scale(15)';
 
     if ($props.src) {
         loadImage($props.src);

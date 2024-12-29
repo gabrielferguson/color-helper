@@ -942,6 +942,9 @@ const superpositionRedo = async (e: MouseEvent) => {
                                     <el-option label="L" value="L" />
                                     <el-option label="C" value="C" />
                                     <el-option label="R" value="R" />
+                                    <el-option label="T" value="T" />
+                                    <el-option label="M" value="M" />
+                                    <el-option label="B" value="B" />
                                 </el-select>
                             </template>
                         </el-table-column>

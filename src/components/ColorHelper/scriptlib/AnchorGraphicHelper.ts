@@ -6,14 +6,19 @@ export default class AnchorGraphicHelper {
     private _LEFT = 0;
     private _CENTER = 1;
     private _RIGHT = 2;
+    private _TOP = 3;
+    private _MIDDLE = 4;
+    private _BOTTOM = 5;
 
     private BaseGraphicHelper: GraphicHelper;
-    private Multiple: number;
+    private MultipleH: number;
+    private MultipleW: number;
     private Left: number;
     private Top: number;
     private Right: number;
     private Bottom: number;
     private Center: number;
+    private Middle: number;
     private DevWidth: number;
     private DevHeight: number;
 
@@ -52,7 +57,9 @@ export default class AnchorGraphicHelper {
         this.Right = right;
         this.Bottom = bottom;
         this.Center = this.Round((this.Right - this.Left + 1.0) / 2) + this.Left - 1;
-        this.Multiple = (this.Bottom - this.Top + 1.0) / this.DevHeight;
+        this.Middle = this.Round((this.Bottom - this.Top + 1.0) / 2) + this.Top - 1;
+        this.MultipleH = (this.Bottom - this.Top + 1.0) / this.DevHeight;
+        this.MultipleW = (this.Right - this.Left + 1.0) / this.DevWidth;
     }
 
 
@@ -133,13 +140,24 @@ export default class AnchorGraphicHelper {
     public GetPoint(x: number, y: number, mode: number): Point {
         const result = new Point(-1, -1);
         if (mode == this._LEFT || mode == this._NONE) {
-            result.x = this.Round(x * this.Multiple) + this.Left;
+            result.x = this.Round(x * this.MultipleH) + this.Left;
+            result.y = this.Round(y * this.MultipleH) + this.Top;
         } else if (mode == this._CENTER) {
-            result.x = this.Round(this.Center - (this.DevWidth / 2.0 - x - 1) * this.Multiple);
+            result.x = this.Round(this.Center - (this.DevWidth / 2.0 - x - 1) * this.MultipleH);
+            result.y = this.Round(y * this.MultipleH) + this.Top;
         } else if (mode == this._RIGHT) {
-            result.x = this.Round(this.Right - (this.DevWidth - x - 1) * this.Multiple);
+            result.x = this.Round(this.Right - (this.DevWidth - x - 1) * this.MultipleH);
+            result.y = this.Round(y * this.MultipleH) + this.Top;
+        } else if (mode == this._TOP) {
+            result.y = this.Round(y * this.MultipleW) + this.Top;
+            result.x = this.Round(x * this.MultipleW) + this.Left;
+        } else if (mode == this._MIDDLE) {
+            result.y = this.Round(this.Middle - (this.DevHeight / 2.0 - y - 1) * this.MultipleW);
+            result.x = this.Round(x * this.MultipleW) + this.Left;
+        } else if (mode == this._BOTTOM) {
+            result.y = this.Round(this.Bottom - (this.DevHeight - y - 1) * this.MultipleW);
+            result.x = this.Round(x * this.MultipleW) + this.Left;
         }
-        result.y = this.Round(y * this.Multiple) + this.Top;
         return result;
     }
 
@@ -167,17 +185,30 @@ export default class AnchorGraphicHelper {
     }
 
     public GetCmpColorArray1(devWidth: number, devHeight: number, description: number[][]): number[][] {
-        const multiple = (this.Bottom - this.Top + 1.0) / devHeight;
+        const multipleH = (this.Bottom - this.Top + 1.0) / devHeight;
+        const multipleW = (this.Right - this.Left + 1.0) / devWidth;
+
         const result: number[][] = Array.from({ length: description.length }, () => Array(9).fill(0));
         for (let i = 0; i < description.length; i++) {
             if (description[i][0] == this._LEFT || description[i][0] == this._NONE) {
-                result[i][0] = this.Round(description[i][1] * multiple) + this.Left;
+                result[i][0] = this.Round(description[i][1] * multipleH) + this.Left;
+                result[i][1] = this.Round(description[i][2] * multipleH) + this.Top;
             } else if (description[i][0] == this._CENTER) {
-                result[i][0] = this.Round(this.Center - (devWidth / 2.0 - description[i][1] - 1) * multiple);
+                result[i][0] = this.Round(this.Center - (devWidth / 2.0 - description[i][1] - 1) * multipleH);
+                result[i][1] = this.Round(description[i][2] * multipleH) + this.Top;
             } else if (description[i][0] == this._RIGHT) {
-                result[i][0] = this.Round(this.Right - (devWidth - description[i][1] - 1) * multiple);
+                result[i][0] = this.Round(this.Right - (devWidth - description[i][1] - 1) * multipleH);
+                result[i][1] = this.Round(description[i][2] * multipleH) + this.Top;
+            } else if (description[i][0] == this._TOP) {
+                result[i][1] = this.Round(description[i][2] * multipleW) + this.Top;
+                result[i][0] = this.Round(description[i][1] * multipleW) + this.Left;
+            } else if (description[i][0] == this._MIDDLE) {
+                result[i][1] = this.Round(this.Middle - (devHeight / 2.0 - description[i][2] - 1) * multipleW);
+                result[i][0] = this.Round(description[i][1] * multipleW) + this.Left;
+            } else if (description[i][0] == this._BOTTOM) {
+                result[i][1] = this.Round(this.Bottom - (devHeight - description[i][2] - 1) * multipleW);
+                result[i][0] = this.Round(description[i][1] * multipleW) + this.Left;
             }
-            result[i][1] = this.Round(description[i][2] * multiple) + this.Top;
             result[i][2] = (description[i][3] & 0xff0000) >> 16;
             result[i][3] = (description[i][3] & 0xff00) >> 8;
             result[i][4] = description[i][3] & 0xff;
@@ -202,7 +233,8 @@ export default class AnchorGraphicHelper {
         const desc = description.split(',');
         const devWidth = parseInt(desc[0].trim());
         const devHeight = parseInt(desc[1].trim());
-        const multiple = (this.Bottom - this.Top + 1.0) / devHeight;
+        const multipleH = (this.Bottom - this.Top + 1.0) / devHeight;
+        const multipleW = (this.Right - this.Left + 1.0) / devWidth;
 
         const result: number[][] = Array.from({ length: description.length - 2 }, () => Array(9).fill(0));
         for (let i = 2, j = 0; i < desc.length; i++, j++) {
@@ -210,16 +242,30 @@ export default class AnchorGraphicHelper {
             switch (currentDesc[0]) {
                 case 'left':
                 case 'none':
-                    result[j][0] = this.Round(parseInt(currentDesc[1]) * multiple) + this.Left;
+                    result[j][0] = this.Round(parseInt(currentDesc[1]) * multipleH) + this.Left;
+                    result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top;
                     break;
                 case 'center':
-                    result[j][0] = this.Round(this.Center - (devWidth / 2.0 - parseInt(currentDesc[1]) - 1) * multiple);
+                    result[j][0] = this.Round(this.Center - (devWidth / 2.0 - parseInt(currentDesc[1]) - 1) * multipleH);
+                    result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top;
                     break;
                 case 'right':
-                    result[j][0] = this.Round(this.Right - (devWidth - parseInt(currentDesc[1]) - 1) * multiple);
+                    result[j][0] = this.Round(this.Right - (devWidth - parseInt(currentDesc[1]) - 1) * multipleH);
+                    result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top;
+                    break;
+                case "top":
+                    result[j][1] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Top;
+                    result[j][0] = this.Round(parseInt(currentDesc[2]) * multipleW) + this.Left;
+                    break;
+                case "middle":
+                    result[j][1] = this.Round(this.Middle - (devHeight / 2.0 - parseInt(currentDesc[1]) - 1) * multipleW);
+                    result[j][0] = this.Round(parseInt(currentDesc[2]) * multipleW) + this.Left;
+                    break;
+                case "bottom":
+                    result[j][1] = this.Round(this.Bottom - (devHeight - parseInt(currentDesc[1]) - 1) * multipleW);
+                    result[j][0] = this.Round(parseInt(currentDesc[2]) * multipleW) + this.Left;
                     break;
             }
-            result[j][1] = this.Round(parseInt(currentDesc[2]) * multiple) + this.Top;
             const color = parseInt(currentDesc[3].replace('0x', ''), 16);
             result[j][2] = (color & 0xff0000) >> 16;
             result[j][3] = (color & 0xff00) >> 8;
@@ -245,15 +291,27 @@ export default class AnchorGraphicHelper {
 
     public GetFindColorArray1(devWidth: number, devHeight: number, description: number[][]): number[][] {
         const result: number[][] = Array.from({ length: description.length }, () => Array(9).fill(0));
-        const multiple = (this.Bottom - this.Top + 1.0) / devHeight;
+        const multipleH = (this.Bottom - this.Top + 1.0) / devHeight;
+        const multipleW = (this.Right - this.Left + 1.0) / devWidth;
         if (description[0][0] == this._LEFT || description[0][0] == this._NONE) {
-            result[0][0] = this.Round(description[0][1] * multiple) + this.Left;
+            result[0][0] = this.Round(description[0][1] * multipleH) + this.Left;
+            result[0][1] = this.Round(description[0][2] * multipleH) + this.Top;
         } else if (description[0][0] == this._CENTER) {
-            result[0][0] = this.Round(this.Center - (devWidth / 2.0 - description[0][1] - 1) * multiple);
+            result[0][0] = this.Round(this.Center - (devWidth / 2.0 - description[0][1] - 1) * multipleH);
+            result[0][1] = this.Round(description[0][2] * multipleH) + this.Top;
         } else if (description[0][0] == this._RIGHT) {
-            result[0][0] = this.Round(this.Right - (devWidth - description[0][1] - 1) * multiple);
+            result[0][0] = this.Round(this.Right - (devWidth - description[0][1] - 1) * multipleH);
+            result[0][1] = this.Round(description[0][2] * multipleH) + this.Top;
+        } else if (description[0][0] == this._TOP) {
+            result[0][1] = this.Round(description[0][2] * multipleW) + this.Top;
+            result[0][0] = this.Round(description[0][1] * multipleW) + this.Left;
+        } else if (description[0][0] == this._MIDDLE) {
+            result[0][1] = this.Round(this.Middle - (devHeight / 2.0 - description[0][2] - 1) * multipleW);
+            result[0][0] = this.Round(description[0][1] * multipleW) + this.Left;
+        } else if (description[0][0] == this._BOTTOM) {
+            result[0][1] = this.Round(this.Bottom - (devHeight - description[0][2] - 1) * multipleW);
+            result[0][0] = this.Round(description[0][1] * multipleW) + this.Left;
         }
-        result[0][1] = this.Round(description[0][2] * multiple);
         result[0][2] = (description[0][3] & 0xff0000) >> 16;
         result[0][3] = (description[0][3] & 0xff00) >> 8;
         result[0][4] = description[0][3] & 0xff;
@@ -266,13 +324,24 @@ export default class AnchorGraphicHelper {
 
         for (let i = 1; i < description.length; i++) {
             if (description[i][0] == this._LEFT || description[i][0] == this._NONE) {
-                result[i][0] = this.Round(description[i][1] * multiple) + this.Left - result[0][0];
+                result[i][0] = this.Round(description[i][1] * multipleH) + this.Left - result[0][0];
+                result[i][1] = this.Round(description[i][2] * multipleH) + this.Top - result[0][1];
             } else if (description[i][0] == this._CENTER) {
-                result[i][0] = this.Round(this.Center - (devWidth / 2.0 - description[i][1] - 1) * multiple) - result[0][0];
+                result[i][0] = this.Round(this.Center - (devWidth / 2.0 - description[i][1] - 1) * multipleH) - result[0][0];
+                result[i][1] = this.Round(description[i][2] * multipleH) + this.Top - result[0][1];
             } else if (description[i][0] == this._RIGHT) {
-                result[i][0] = this.Round(this.Right - (devWidth - description[i][1] - 1) * multiple) - result[0][0];
+                result[i][0] = this.Round(this.Right - (devWidth - description[i][1] - 1) * multipleH) - result[0][0];
+                result[i][1] = this.Round(description[i][2] * multipleH) + this.Top - result[0][1];
+            } else if (description[i][0] == this._TOP) {
+                result[i][1] = this.Round(description[i][2] * multipleW) + this.Top - result[0][1];
+                result[i][0] = this.Round(description[i][1] * multipleW) + this.Left - result[0][0];
+            } else if (description[i][0] == this._MIDDLE) {
+                result[i][1] = this.Round(this.Middle - (devHeight / 2.0 - description[i][2] - 1) * multipleW) - result[0][1];
+                result[i][0] = this.Round(description[i][1] * multipleW) + this.Left - result[0][0];
+            } else if (description[i][0] == this._BOTTOM) {
+                result[i][1] = this.Round(this.Bottom - (devHeight - description[i][2] - 1) * multipleW) - result[0][1];
+                result[i][0] = this.Round(description[i][1] * multipleW) + this.Left - result[0][0];
             }
-            result[i][1] = this.Round(description[i][2] * multiple) + this.Top - result[0][1];
             result[i][2] = (description[i][3] & 0xff0000) >> 16;
             result[i][3] = (description[i][3] & 0xff00) >> 8;
             result[i][4] = description[i][3] & 0xff;
@@ -297,7 +366,8 @@ export default class AnchorGraphicHelper {
             const desc = description.split(',');
             const devWidth = parseInt(desc[0].trim());
             const devHeight = parseInt(desc[1].trim());
-            const multiple = (this.Bottom - this.Top + 1.0) / devHeight;
+            const multipleH = (this.Bottom - this.Top + 1.0) / devHeight;
+            const multipleW = (this.Right - this.Left + 1.0) / devWidth;
 
             const result: number[][] = Array.from({ length: description.length - 2 }, () => Array(9).fill(0));
 
@@ -306,16 +376,30 @@ export default class AnchorGraphicHelper {
                 switch (currentDesc[0]) {
                     case 'left':
                     case 'none':
-                        result[0][0] = this.Round(parseInt(currentDesc[1]) * multiple) + this.Left;
+                        result[0][0] = this.Round(parseInt(currentDesc[1]) * multipleH) + this.Left;
+                        result[0][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top;
                         break;
                     case 'center':
-                        result[0][0] = this.Round(this.Center - (devWidth / 2.0 - parseInt(currentDesc[1]) - 1) * multiple);
+                        result[0][0] = this.Round(this.Center - (devWidth / 2.0 - parseInt(currentDesc[1]) - 1) * multipleH);
+                        result[0][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top;
                         break;
                     case 'right':
-                        result[0][0] = this.Round(this.Right - (devWidth - parseInt(currentDesc[1]) - 1) * multiple);
+                        result[0][0] = this.Round(this.Right - (devWidth - parseInt(currentDesc[1]) - 1) * multipleH);
+                        result[0][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top;
+                        break;
+                    case "top":
+                        result[0][1] = this.Round(parseInt(currentDesc[2]) * multipleW) + this.Top;
+                        result[0][0] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Left;
+                        break;
+                    case "middle":
+                        result[0][1] = this.Round(this.Middle - (devHeight / 2.0 - parseInt(currentDesc[2]) - 1) * multipleW);
+                        result[0][0] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Left;
+                        break;
+                    case "bottom":
+                        result[0][1] = this.Round(this.Bottom - (devHeight - parseInt(currentDesc[2]) - 1) * multipleW);
+                        result[0][0] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Left;
                         break;
                 }
-                result[0][1] = this.Round(parseInt(currentDesc[2]) * multiple) + this.Top;
                 const color = parseInt(currentDesc[3].replace('0x', ''), 16);
                 result[0][2] = (color & 0xff0000) >> 16;
                 result[0][3] = (color & 0xff00) >> 8;
@@ -334,16 +418,31 @@ export default class AnchorGraphicHelper {
                 switch (currentDesc[0]) {
                     case 'left':
                     case 'none':
-                        result[j][0] = this.Round(parseInt(currentDesc[1]) * multiple) + this.Left - result[0][0];
+                        result[j][0] = this.Round(parseInt(currentDesc[1]) * multipleH) + this.Left - result[0][0];
+                        result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top - result[0][1];
                         break;
                     case 'center':
-                        result[j][0] = this.Round(this.Center - (devWidth / 2.0 - parseInt(currentDesc[1]) - 1) * multiple) - result[0][0];
+                        result[j][0] = this.Round(this.Center - (devWidth / 2.0 - parseInt(currentDesc[1]) - 1) * multipleH) - result[0][0];
+                        result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top - result[0][1];
                         break;
                     case 'right':
-                        result[j][0] = this.Round(this.Right - (devWidth - parseInt(currentDesc[1]) - 1) * multiple) - result[0][0];
+                        result[j][0] = this.Round(this.Right - (devWidth - parseInt(currentDesc[1]) - 1) * multipleH) - result[0][0];
+                        result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleH) + this.Top - result[0][1];
+                        break;
+                    case "top":
+                        result[j][1] = this.Round(parseInt(currentDesc[2]) * multipleW) + this.Top - result[0][1];
+                        result[j][0] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Left - result[0][0];
+                        break;
+                    case "middle":
+                        result[j][1] = this.Round(this.Middle - (devHeight / 2.0 - parseInt(currentDesc[2]) - 1) * multipleW) - result[0][1];
+                        result[j][0] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Left - result[0][0];
+                        break;
+                    case "bottom":
+                        result[j][1] = this.Round(this.Bottom - (devHeight - parseInt(currentDesc[2]) - 1) * multipleW) - result[0][1];
+                        result[j][0] = this.Round(parseInt(currentDesc[1]) * multipleW) + this.Left - result[0][0];
                         break;
                 }
-                result[j][1] = this.Round(parseInt(currentDesc[2]) * multiple) + this.Top - result[0][1];
+                        
                 const color = parseInt(currentDesc[3].replace('0x', ''), 16);
                 result[j][2] = (color & 0xff0000) >> 16;
                 result[j][3] = (color & 0xff00) >> 8;

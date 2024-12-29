@@ -29,7 +29,7 @@ export class AnchorExecutor implements IExecutor {
 	 */
 	parse(data: string, imageData: ImageData, option: ExecutorOption): ParseResult {
 		data = data.trim().replace(/,$|^desc:|^oper:|^region:/g, '').trim();
-		const str = data.replace(/(none|center|right|left)/ig, (match) => `"${match[0].toUpperCase()}"`);
+		const str = data.replace(/(none|center|right|left|top|middle|bottom)/ig, (match) => `"${match[0].toUpperCase()}"`);
 		let temp: any;
 		try {
 			temp = (new Function(`return ${str}`)).apply(null);
@@ -105,6 +105,9 @@ export class AnchorExecutor implements IExecutor {
 			'L': 'left',
 			'C': 'center',
 			'R': 'right',
+			'T': 'top',
+			'M': 'middle',
+			'B': 'bottom',
 		}
 		data = data.filter(d => d.checked);
 		const descStr = `[${imageData.width}, ${imageData.height},

@@ -158,7 +158,7 @@ const maskMouseMoveEvent = throttle((e: MouseEvent) => {
         if (!currentRegion) {
             currentRegion = {
                 checked: true,
-                anchor: 'C',
+                anchor: img.width > img.height ? 'C' : 'M',
                 x0: regionDownPosition.x,
                 y0: regionDownPosition.y,
                 x1: centerPoint.x,
@@ -211,7 +211,10 @@ const maskKeyEvent = (e: KeyboardEvent) => {
         centerPoint.offset(0, 1);
         drawMask();
         magnifierRefresh();
-    } else if (e.code === 'Space' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD') {
+    } else if (e.code === 'Space' ||
+        e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD' ||
+        e.code === 'KeyW' || e.code === 'KeyX'
+    ) {
         addCenterToPostionData(e.code);
     }
 }
@@ -229,16 +232,30 @@ const maskBlurEvent = () => {
 }
 
 const addCenterToPostionData = (code: string) => {
-    let anchor: 'N' | 'L' | 'C' | 'R' = 'N';
+    let anchor: 'N' | 'L' | 'C' | 'R' | 'T' | 'M' | 'B'= 'N';
     if (code === 'KeyA') anchor = 'L';
-    else if (code === 'KeyS') anchor = 'C';
+    else if (code === 'KeyS') {
+        if (img.width > img.height) {
+            anchor = 'C';
+        } else {
+            anchor = 'M';
+        }
+    }
     else if (code === 'KeyD') anchor = 'R';
+    else if (code === 'KeyW') anchor = 'T';
+    else if (code === 'KeyX') anchor = 'B';
     else if (code === 'Space') {
         //  按1/4 1/2 1/4比例来，分别为LCR
         const anchorRatios = [.25, .5, .25].map(ratio => ratio * img.width);
-        if (centerPoint.x <= anchorRatios[0]) anchor = 'L';
-        else if (centerPoint.x >= anchorRatios[1]) anchor = 'R';
-        else anchor = 'C'; // 最后一个不用判断，取剩余空间
+        if (img.width > img.height) {
+            if (centerPoint.x <= anchorRatios[0]) anchor = 'L';
+            else if (centerPoint.x >= anchorRatios[1]) anchor = 'R';
+            else anchor = 'C'; // 最后一个不用判断，取剩余空间
+        } else {
+            if (centerPoint.y <= anchorRatios[0]) anchor = 'T';
+            else if (centerPoint.y >= anchorRatios[1]) anchor = 'B';
+            else anchor = 'M'; // 最后一个不用判断，取剩余空间
+        }
     }
 
     const data: PositionRowData = {

@@ -3,7 +3,7 @@ import emitter from "./eventBus";
 
 export type PositionRowData = {
     checked: boolean, // 是否选中
-    anchor: 'N' | 'L' | 'C' | 'R', // 锚点方向
+    anchor: 'N' | 'L' | 'C' | 'R' | 'T' | 'M' | 'B', // 锚点方向
     coordinate: string, // 坐标 x,y
     color: string, // 坐标颜色 0xRRGGBB
     similarity?: number, // 与图片上的相似度
@@ -11,7 +11,7 @@ export type PositionRowData = {
 
 export type RegionRowData = {
     checked: boolean;
-    anchor: 'N' | 'L' | 'C' | 'R', // 锚点方向
+    anchor: 'N' | 'L' | 'C' | 'R' | 'T' | 'M' | 'B', // 锚点方向
     x0: number;
     y0: number;
     x1: number;

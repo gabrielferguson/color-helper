@@ -2,7 +2,7 @@
 import ColoredCheckbox from './ColoredCheckbox.vue';
 import Point from './scriptlib/Point';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { colorSimilarity, pixOfImageDataArray, pixOfImageDataString, parseToImageData, throttle, isImageLight, type RegionRowData, type PositionRowData, adbHelper, fileToDataURL, type ScreenCapResult } from './tools';
+import { colorSimilarity, pixOfImageDataArray, pixOfImageDataString, parseToImageData, throttle, isImageLight, type RegionRowData, type PositionRowData, adbHelper, fileToDataURL, type ScreenCapResult, readImageFromClipboard } from './tools';
 import { executors as innerExecutors, type IExecutor } from './executor/Executor';
 import { ElNotification, type UploadFile, type UploadFiles } from 'element-plus';
 import emitter from './eventBus';
@@ -723,10 +723,57 @@ onMounted(() => {
     if ($props.src) {
         loadImage($props.src);
     }
+
+    // 添加全局粘贴事件监听器
+    window.addEventListener('paste', handlePaste);
 });
+
+// 处理粘贴事件
+const handlePaste = async (e: ClipboardEvent) => {
+    if (!imgLoaded.value) {
+        return; // 如果还没有加载图片，不处理粘贴事件
+    }
+    
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) {
+        return;
+    }
+    
+    const items = clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+            e.preventDefault(); // 阻止默认粘贴行为
+            
+            const blob = item.getAsFile();
+            if (blob) {
+                try {
+                    const t1 = Date.now();
+                    const imageData = await parseToImageData(blob);
+                    const fileName = `剪贴板-${new Date().getTime()}`;
+                    console.log(`粘贴图片加载耗时: ${Date.now() - t1}ms`);
+                    superpositionImageData(fileName, imageData);
+                    
+                    ElNotification({
+                        message: '已从剪贴板粘贴图片',
+                        type: 'success',
+                    });
+                } catch (error: any) {
+                    console.error(error);
+                    ElNotification({
+                        message: `粘贴图片失败：${error.message}`,
+                        type: 'error',
+                    });
+                }
+            }
+            break;
+        }
+    }
+};
 
 onUnmounted(() => {
     window.removeEventListener('resize', resize);
+    window.removeEventListener('paste', handlePaste);
     emitter.off('Event.ColorHelper.Settings.change');
     emitter.off('Event.ColorHelper.AdbHelper.canScreencapStatusChange');
 });
@@ -815,6 +862,42 @@ const superpositionAdbScreencap = async (e: MouseEvent) => {
     loadingScreenCap.value = false;
 }
 
+const loadingClipboard = ref<boolean>(false);
+const superpositionClipboardImage = async (e: MouseEvent) => {
+    loadingClipboard.value = true;
+    try {
+        const t1 = Date.now();
+        const imageBlob = await readImageFromClipboard();
+        
+        if (!imageBlob) {
+            ElNotification({
+                message: '剪贴板中没有图片',
+                type: 'warning',
+            });
+            loadingClipboard.value = false;
+            return;
+        }
+        
+        const t2 = Date.now();
+        console.log(`剪贴板读取耗时: ${t2 - t1}ms`);
+        const imageData = await parseToImageData(imageBlob);
+        const fileName = `剪贴板-${new Date().getTime()}`;
+        superpositionImageData(fileName, imageData);
+        
+        ElNotification({
+            message: '已从剪贴板导入图片',
+            type: 'success',
+        });
+    } catch (e: any) {
+        console.error(e);
+        ElNotification({
+            message: `从剪贴板导入图片失败：${e.message}`,
+            type: 'error',
+        });
+    }
+    loadingClipboard.value = false;
+}
+
 const superpositionUndo = async (e: MouseEvent) => {
     --superpositionImageStackCurrentIndex.value;
     if (superpositionImageStackCurrentIndex.value === 0) {
@@ -855,6 +938,12 @@ const superpositionRedo = async (e: MouseEvent) => {
                                 </el-tooltip>
                             </el-button>
                         </el-upload>
+                        <el-button @click="superpositionClipboardImage" size="small" :disabled="loadingClipboard">
+                            <el-icon v-if="loadingClipboard" class="is-loading">
+                                <Loading />
+                            </el-icon>
+                            <template v-if="!loadingClipboard">剪贴板</template>
+                        </el-button>
                         <el-button @click="superpositionAdbScreencap" size="small" v-if="canAdbScreencap"
                             style="width: 48px" :disabled="loadingScreenCap">
                             <el-icon v-if="loadingScreenCap" class="is-loading">

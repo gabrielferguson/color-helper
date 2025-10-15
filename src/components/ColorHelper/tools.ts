@@ -217,7 +217,7 @@ export function isImageLight(imageData: ImageData): boolean {
  * @param url 
  * @returns 
  */
-export function parseToImageData(obj: string | File): Promise<ImageData> {
+export function parseToImageData(obj: string | File | Blob): Promise<ImageData> {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
@@ -253,12 +253,34 @@ export function parseToImageData(obj: string | File): Promise<ImageData> {
             });
             reject(new Error('Image failed to load.'))
         };
-        if (obj instanceof File) {
+        if (obj instanceof File || obj instanceof Blob) {
             img.src = URL.createObjectURL(obj);
         } else if (typeof obj === 'string') {
             img.src = obj;
         }
     });
+}
+
+/**
+ * 从剪贴板读取图片
+ * @returns Promise<Blob | null> 返回剪贴板中的图片Blob，如果没有图片则返回null
+ */
+export async function readImageFromClipboard(): Promise<Blob | null> {
+    try {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const clipboardItem of clipboardItems) {
+            for (const type of clipboardItem.types) {
+                if (type.startsWith('image/')) {
+                    const blob = await clipboardItem.getType(type);
+                    return blob;
+                }
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('读取剪贴板失败:', error);
+        throw error;
+    }
 }
 
 const adbUrlContextPath = 'http://127.0.0.1:15919/color-helper-bridge/api';

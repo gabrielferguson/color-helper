@@ -7,6 +7,10 @@
 2. 支持多区域添加，找色也根据所选区域进行找色；
 3. 执行器扩展：参考`src/components/ColorHelper/executor/DefaultExecutor.ts`，实现`IExecutor`接口，并在`src/components/ColorHelper/index.ts`中调用`registerExecutor`注册执行器
 4. 因浏览器限制，adb截图需额外本地运行独立的桥服务，内测中联系作者获取
+5. **剪贴板导入图片**：
+   - 点击"剪贴板"按钮从剪贴板导入图片
+   - 或直接使用 Ctrl+V (Cmd+V) 快捷键粘贴图片
+   - 支持多种图片格式（PNG、JPG、WEBP等）
 
 ## 感谢
  - [yiszza/ScriptGraphicHelper](https://gitee.com/yiszza/ScriptGraphicHelper) 综合图色助手，参考了该工具的交互逻辑

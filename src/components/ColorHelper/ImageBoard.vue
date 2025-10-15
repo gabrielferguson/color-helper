@@ -45,11 +45,6 @@ let imgLoaded = ref(false);
 
 const magnifierShown = ref(false);
 
-// 缩放和平移状态
-const zoomScale = ref(1); // 当前缩放比例，初始为 1（100%）
-const zoomTranslateX = ref(0); // X 轴平移偏移
-const zoomTranslateY = ref(0); // Y 轴平移偏移
-
 let imageCtx: CanvasRenderingContext2D;
 let maskCtx: CanvasRenderingContext2D;
 let magnifierCtx: CanvasRenderingContext2D;
@@ -730,22 +725,56 @@ onMounted(() => {
         loadImage($props.src);
     }
 
-    // 添加滚轮事件监听器用于缩放
-    const container = maskCanvasRef.value?.parentElement;
-    if (container) {
-        container.addEventListener('wheel', handleWheel, { passive: false });
-    }
+    // 添加全局粘贴事件监听器
+    window.addEventListener('paste', handlePaste);
 });
+
+// 处理粘贴事件
+const handlePaste = async (e: ClipboardEvent) => {
+    if (!imgLoaded.value) {
+        return; // 如果还没有加载图片，不处理粘贴事件
+    }
+    
+    const clipboardData = e.clipboardData;
+    if (!clipboardData) {
+        return;
+    }
+    
+    const items = clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+            e.preventDefault(); // 阻止默认粘贴行为
+            
+            const blob = item.getAsFile();
+            if (blob) {
+                try {
+                    const t1 = Date.now();
+                    const imageData = await parseToImageData(blob);
+                    const fileName = `剪贴板-${new Date().getTime()}`;
+                    console.log(`粘贴图片加载耗时: ${Date.now() - t1}ms`);
+                    superpositionImageData(fileName, imageData);
+                    
+                    ElNotification({
+                        message: '已从剪贴板粘贴图片',
+                        type: 'success',
+                    });
+                } catch (error: any) {
+                    console.error(error);
+                    ElNotification({
+                        message: `粘贴图片失败：${error.message}`,
+                        type: 'error',
+                    });
+                }
+            }
+            break;
+        }
+    }
+};
 
 onUnmounted(() => {
     window.removeEventListener('resize', resize);
-    
-    // 清理滚轮事件监听器
-    const container = maskCanvasRef.value?.parentElement;
-    if (container) {
-        container.removeEventListener('wheel', handleWheel);
-    }
-    
+    window.removeEventListener('paste', handlePaste);
     emitter.off('Event.ColorHelper.Settings.change');
     emitter.off('Event.ColorHelper.AdbHelper.canScreencapStatusChange');
 });
@@ -876,55 +905,6 @@ const superpositionRedo = async (e: MouseEvent) => {
     imageCtx.putImageData(currentImageData, 0, 0);
 }
 
-// 处理鼠标滚轮事件实现缩放
-const handleWheel = (event: WheelEvent) => {
-    if (!imgLoaded.value) return;
-    
-    event.preventDefault(); // 阻止页面滚动
-    
-    // 获取鼠标相对于画布容器的坐标
-    const container = maskCanvasRef.value.parentElement;
-    if (!container) return;
-    
-    const rect = container.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left + container.scrollLeft;
-    const mouseY = event.clientY - rect.top + container.scrollTop;
-    
-    // 计算缩放因子（deltaY < 0 表示向上滚动，放大）
-    const delta = event.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(0.1, Math.min(5, zoomScale.value * delta));
-    
-    // 计算新的平移偏移，使光标位置保持不变
-    // 核心算法：确保 (mouseX - translateX) / scale 在缩放前后保持不变
-    const scaleChange = newScale / zoomScale.value;
-    zoomTranslateX.value = mouseX - (mouseX - zoomTranslateX.value) * scaleChange;
-    zoomTranslateY.value = mouseY - (mouseY - zoomTranslateY.value) * scaleChange;
-    
-    zoomScale.value = newScale;
-    
-    // 应用变换
-    applyZoomTransform();
-};
-
-// 应用缩放变换到画布
-const applyZoomTransform = () => {
-    if (!imageCanvasRef.value || !maskCanvasRef.value) return;
-    
-    const transform = `translate(${zoomTranslateX.value}px, ${zoomTranslateY.value}px) scale(${zoomScale.value})`;
-    imageCanvasRef.value.style.transform = transform;
-    maskCanvasRef.value.style.transform = transform;
-    imageCanvasRef.value.style.transformOrigin = '0 0';
-    maskCanvasRef.value.style.transformOrigin = '0 0';
-};
-
-// 重置缩放
-const resetZoom = () => {
-    zoomScale.value = 1;
-    zoomTranslateX.value = 0;
-    zoomTranslateY.value = 0;
-    applyZoomTransform();
-};
-
 </script>
 
 <template>
@@ -1005,12 +985,6 @@ const resetZoom = () => {
                             </el-popover>
                             <el-button size="small" @click="testBtnClickEvent">测试</el-button>
                         </el-button-group>
-                    </div>
-                </el-row>
-                <el-row style="margin-top: 5px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <el-button size="small" @click="resetZoom">重置缩放</el-button>
-                        <span style="font-size: 12px; color: #666;">缩放：{{ Math.round(zoomScale * 100) }}%</span>
                     </div>
                 </el-row>
                 <div>

@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import ImageBoard from './ImageBoard.vue';
 import SettingsPopover from './SettingsPopover.vue';
 import { ElNotification, type TabPaneName } from 'element-plus';
-import { fileToDataURL } from './tools';
+import { fileToDataURL, readImageFromClipboard, parseToImageData } from './tools';
 import AdbHelper from './AdbHelper.vue';
 
 let tabIndex = 1
@@ -15,6 +15,7 @@ const editableTabs = ref([
     //     src: undefined,
     // }
 ]);
+const fileInputRef = ref<any>(null);
 const handleTabsEdit = (targetName: TabPaneName | undefined, action: 'remove' | 'add') => {
     if (action === 'add') {
         const newTabName = `${++tabIndex}`
@@ -42,6 +43,35 @@ const handleTabsEdit = (targetName: TabPaneName | undefined, action: 'remove' | 
         editableTabs.value = tabs.filter((tab) => tab.name !== targetName)
     }
 }
+
+// 尝试从剪贴板加载图片，失败则打开文件选择器
+const handleLoadImage = async () => {
+    try {
+        // 首先尝试从剪贴板读取图片
+        const imageBlob = await readImageFromClipboard();
+        
+        if (imageBlob) {
+            // 剪贴板有图片，直接使用
+            const fileName = `剪贴板-${new Date().getTime()}`;
+            const dataUrl = await fileToDataURL(imageBlob as File);
+            editableTabs.value.push({
+                title: fileName,
+                name: fileName,
+                src: dataUrl
+            });
+            editableTabsValue.value = fileName;
+            return;
+        }
+    } catch (error) {
+        // 剪贴板读取失败或无图片，静默处理
+        console.log('剪贴板无图片或读取失败，打开文件选择器');
+    }
+    
+    // 剪贴板无图片，触发文件输入框
+    if (fileInputRef.value) {
+        fileInputRef.value.$el.querySelector('input').click();
+    }
+};
 
 const handleFileChange = async (file: any) => {
     // TODO 暂时不允许重复加载图片，后续再考重复加载的图片更新命名后新增页签加载
@@ -81,9 +111,9 @@ const settingsPopoverShown = ref(false);
 <template>
     <div class="color-helper-main-toolbar">
         <div style="display: flex;">
-            <el-upload multiple :on-change="handleFileChange" accept="image/*" :auto-upload="false" :show-file-list="false">
-                <el-button type="primary">加载图片</el-button>
+            <el-upload ref="fileInputRef" multiple :on-change="handleFileChange" accept="image/*" :auto-upload="false" :show-file-list="false" style="display: none;">
             </el-upload>
+            <el-button type="primary" @click="handleLoadImage">加载图片</el-button>
             <SettingsPopover :visible="settingsPopoverShown">
                 <template #reference>
                     <el-button type="default" @click="settingsPopoverShown = true" style="margin-left: 10px">设置</el-button>

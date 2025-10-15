@@ -13,6 +13,7 @@ const imageCanvasRef = ref<HTMLCanvasElement>();
 const maskCanvasRef = ref<HTMLCanvasElement>();
 const magnifierCanvasRef = ref<HTMLCanvasElement>();
 const magnifierRef = ref<HTMLDivElement>();
+const superpositionFileInputRef = ref<any>(null);
 const positionX = ref(-1);
 const positionY = ref(-1);
 const positionColor = ref('000000');
@@ -862,41 +863,32 @@ const superpositionAdbScreencap = async (e: MouseEvent) => {
     loadingScreenCap.value = false;
 }
 
-const loadingClipboard = ref<boolean>(false);
-const superpositionClipboardImage = async (e: MouseEvent) => {
-    loadingClipboard.value = true;
+// 尝试从剪贴板叠加图片，失败则打开文件选择器
+const handleSuperpositionImage = async () => {
     try {
+        // 首先尝试从剪贴板读取图片
         const t1 = Date.now();
         const imageBlob = await readImageFromClipboard();
         
-        if (!imageBlob) {
-            ElNotification({
-                message: '剪贴板中没有图片',
-                type: 'warning',
-            });
-            loadingClipboard.value = false;
+        if (imageBlob) {
+            // 剪贴板有图片，直接使用
+            const t2 = Date.now();
+            console.log(`剪贴板读取耗时: ${t2 - t1}ms`);
+            const imageData = await parseToImageData(imageBlob);
+            const fileName = `剪贴板-${new Date().getTime()}`;
+            superpositionImageData(fileName, imageData);
             return;
         }
-        
-        const t2 = Date.now();
-        console.log(`剪贴板读取耗时: ${t2 - t1}ms`);
-        const imageData = await parseToImageData(imageBlob);
-        const fileName = `剪贴板-${new Date().getTime()}`;
-        superpositionImageData(fileName, imageData);
-        
-        ElNotification({
-            message: '已从剪贴板导入图片',
-            type: 'success',
-        });
-    } catch (e: any) {
-        console.error(e);
-        ElNotification({
-            message: `从剪贴板导入图片失败：${e.message}`,
-            type: 'error',
-        });
+    } catch (error) {
+        // 剪贴板读取失败或无图片，静默处理
+        console.log('剪贴板无图片或读取失败，打开文件选择器');
     }
-    loadingClipboard.value = false;
-}
+    
+    // 剪贴板无图片，触发文件输入框
+    if (superpositionFileInputRef.value) {
+        superpositionFileInputRef.value.$el.querySelector('input').click();
+    }
+};
 
 const superpositionUndo = async (e: MouseEvent) => {
     --superpositionImageStackCurrentIndex.value;
@@ -921,28 +913,22 @@ const superpositionRedo = async (e: MouseEvent) => {
             <div class="positionData-table-toolbar">
                 <el-row>
                     <el-button-group>
-                        <el-upload multiple :on-change="superpositionFileChange" accept="image/*" :auto-upload="false"
-                            :show-file-list="false">
-                            <el-button size="small">图片叠加&nbsp;
-                                <el-tooltip placement="bottom" effect="light">
-                                    <template #content>
-                                        <div style="width: 200px">
-                                            <el-text size="small">
-                                                选择一个或多个图片，与当前图片叠加，新图与原图逐像素对比，颜色相似（配置的相似度）则保留原来图片的颜色，否则清除该处颜色（使其透明）
-                                            </el-text>
-                                        </div>
-                                    </template>
-                                    <el-icon>
-                                        <InfoFilled />
-                                    </el-icon>
-                                </el-tooltip>
-                            </el-button>
+                        <el-upload ref="superpositionFileInputRef" multiple :on-change="superpositionFileChange" accept="image/*" :auto-upload="false"
+                            :show-file-list="false" style="display: none;">
                         </el-upload>
-                        <el-button @click="superpositionClipboardImage" size="small" :disabled="loadingClipboard">
-                            <el-icon v-if="loadingClipboard" class="is-loading">
-                                <Loading />
-                            </el-icon>
-                            <template v-if="!loadingClipboard">剪贴板</template>
+                        <el-button @click="handleSuperpositionImage" size="small">图片叠加&nbsp;
+                            <el-tooltip placement="bottom" effect="light">
+                                <template #content>
+                                    <div style="width: 200px">
+                                        <el-text size="small">
+                                            选择一个或多个图片，与当前图片叠加，新图与原图逐像素对比，颜色相似（配置的相似度）则保留原来图片的颜色，否则清除该处颜色（使其透明）
+                                        </el-text>
+                                    </div>
+                                </template>
+                                <el-icon>
+                                    <InfoFilled />
+                                </el-icon>
+                            </el-tooltip>
                         </el-button>
                         <el-button @click="superpositionAdbScreencap" size="small" v-if="canAdbScreencap"
                             style="width: 48px" :disabled="loadingScreenCap">
